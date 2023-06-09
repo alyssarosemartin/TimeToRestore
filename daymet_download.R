@@ -7,7 +7,17 @@ DataFolder <- "~/Documents/My Files/USA-NPN/Data/Analysis/R_default/npn_analyses
 
 #https://tmieno2.github.io/R-as-GIS-for-Economists/daymet-with-daymetr-and-feddata.html
 
-get_daymet <- function(i){
+#' Download daymet data for a single station
+#' 
+#' @param i integer row of station to retrieve data
+#' @param stations data.frame of station information; must include latitude, 
+#' longitude, and site_id columns
+#' @param start year start for data, defaults to 2021
+#' @param end year end for data, defaults to 2022
+get_daymet <- function(i, stations, start = 2021, end = 2022){
+  if (i %% 10 == 0) {
+    message("Downloading data for station ", i, " of ", nrow(stations))
+  }
   
   temp_lat <- stations[i, ] %>% pull(latitude)
   temp_lon <- stations[i, ] %>% pull(longitude)
@@ -16,8 +26,8 @@ get_daymet <- function(i){
   temp_daymet <- download_daymet(
     lat = temp_lat,
     lon = temp_lon,
-    start = 2021,
-    end = 2022
+    start = start,
+    end = end
   ) %>% 
     #--- just get the data part ---#
     .$data %>% 
@@ -31,12 +41,18 @@ get_daymet <- function(i){
   return(temp_daymet)
 }  
 
+# Read in data file to extract station information
+df2022 <- read.csv("data/16priority_spp_OF_RF_2022.csv")
+
+#create the list of stations needed to run daymet_download.R
+stations <- df2022 %>% distinct(site_id, latitude, longitude)
+
 #check out the results of the first row
-get_daymet(1)
+get_daymet(1, stations = stations)
 
 #run for all stations
 (
-  daymet_df <- lapply(1:nrow(stations), get_daymet) %>% 
+  daymet_df <- lapply(1:nrow(stations), get_daymet, stations = stations) %>% 
     #--- need to combine the list of data.frames into a single data.frame ---#
     bind_rows()
 )
@@ -47,7 +63,7 @@ head(daymet_df$month)
 
 str(daymet_df)
 
-write.csv(daymet_df, file="daymet_stations_16spp.csv")
+write.csv(daymet_df, file="data/daymet_stations_16spp.csv", row.names = FALSE)
                               
 fall_ref_df <- daymet_df %>%
   group_by(site_id)  %>%
@@ -99,9 +115,9 @@ hist(all_ref1$prcp_summer)
 hist(all_ref1$tmax_summer)
 hist(all_ref1$tmin_summer)
 
-write.csv(all_ref1, file="daymet_ref_file_2022_16spp.csv")
+write.csv(all_ref1, file="data/daymet_ref_file_2022_16spp.csv", row.names = FALSE)
 
-setwd(DataFolder)
+# setwd(DataFolder)
 daymet2022 <- (read.csv("daymet_ref_file_2022.csv"))
 
 #code to use if you just want one point

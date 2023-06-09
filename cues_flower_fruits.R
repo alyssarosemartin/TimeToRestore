@@ -7,15 +7,15 @@ library(ggpubr)
 library(ggforce)
 library(lme4)
 library(mblm)
-rm(list=ls())
+# rm(list=ls())
 
-setwd("~/Documents/My Files/USA-NPN/Data/Analysis/R_default/npn_analyses/TimetoRestore/Data")
+# setwd("~/Documents/My Files/USA-NPN/Data/Analysis/R_default/npn_analyses/TimetoRestore/Data")
 
 #This script performs preliminary analyses on the cues for blooming in pollinator resource
 #plants for the Time to Restore project. 
 
 #helper call for species IDs
-species<-npn_species()
+# species <- npn_species()
 species <- c(931,916,201,202,203,224,200,204,845,207,781,197,1334,1163,186,1167) # top 16
 
 #download individual phenometric data, with supporting fields, including Daymet climate data (only thru 2021 currently - 2022 coming soon)
@@ -29,11 +29,11 @@ df2022 <- npn_download_individual_phenometrics(
   climate_data = TRUE
 )
 
-write.csv(df2022, file="16priority_spp_OF_RF_2022.csv")
-df2022 <- (read.csv("16priority_spp_OF_RF_2022.csv"))
+write.csv(df2022, file="data/16priority_spp_OF_RF_2022.csv", row.names = FALSE)
+df2022 <- (read.csv("data/16priority_spp_OF_RF_2022.csv"))
 
-#create the list of stations needed to run daymet_download.R
-stations <- df2022 %>% distinct(site_id, latitude, longitude)
+# create the list of stations needed to run daymet_download.R
+# stations <- df2022 %>% distinct(site_id, latitude, longitude)
 
 #pre 2022 other years
 df <- npn_download_individual_phenometrics(
@@ -45,34 +45,46 @@ df <- npn_download_individual_phenometrics(
   climate_data = TRUE
 )
 
-write.csv(df, file="16priority_spp_OF_RF_2009-2021.csv")
-df <- (read.csv("16priority_spp_OF_RF_2009-2021.csv"))
+write.csv(df, file="data/16priority_spp_OF_RF_2009-2021.csv", row.names = FALSE)
+df <- (read.csv("data/16priority_spp_OF_RF_2009-2021.csv"))
 
 #load daymet data by station reference file (made using daymet_download.R)
-daymet2022 <- (read.csv("daymet_ref_file_2022_16spp.csv"))
+daymet2022 <- (read.csv("data/daymet_ref_file_2022_16spp.csv"))
 
-#merge daymet ref file back with 2022 observational data
-df2022_daymet <- merge(df2022, daymet2022, by = c("site_id"), all=TRUE)
-colnames(df2022_daymet)
+# merge daymet ref file back with 2022 observational data, but first remove 
+# columns from df2022 that are in daymet2022
+cols_to_remove <- dplyr::intersect(x = colnames(daymet2022),
+                                   y = colnames(df2022))
+# ...but leave the site_id column, as that will be used for merge
+cols_to_remove <- cols_to_remove[-which(cols_to_remove == "site_id")]
+# Now use join to put the two dataframes together
+df2022_daymet <- df2022 %>%
+  select(-all_of(cols_to_remove)) %>% # drop tmin, tmax, and prcp columns from df2022
+  left_join(daymet2022)
+  
+# df2022_daymet <- merge(df2022, daymet2022, by = c("site_id"), all=TRUE)
+# colnames(df2022_daymet)
 
 #remove unneeded columns (note - these are for the version from excel with the extra index added)
-df2022_daymet <- select(df2022_daymet, -c(2,30:51))
+# df2022_daymet <- select(df2022_daymet, -c(2,30:51))
 #remove the .y from the merged daymet file col names
-colnames(df2022_daymet) <- sub("\\.y","",colnames(df2022_daymet))
+# colnames(df2022_daymet) <- sub("\\.y","",colnames(df2022_daymet))
 
 #helper for figuring out mismatch between columns in two files
-cols_intersection <- intersect(df2022_daymet, df)
+# cols_intersection <- intersect(df2022_daymet, df)
 
 #remove unneeded cols in df (gdd, acc_prcp, daylength, that we aren't using, to facilitate the bind)
-colnames(df)
-df <- select(df, -c(29,30,35,36,41,42,47:49)) #web service
-#df <- select(df, -c(1,30,31,36,37,42,43,48:50)) #excel
+# cols_to_remove <- which(colnames(df) %in% c("gdd", "acc_prcp", "daylength"))
+# colnames(df)
+# df <- select(df, -cols_to_remove)
+# df <- select(df, -c(29,30,35,36,41,42,47:49)) #web service
+# df <- select(df, -c(1,30,31,36,37,42,43,48:50)) #excel
 
 #row bind, FINALLY make a dataset with all the priority species data and daymet data for 2022
 df_complete <- rbind(df2022_daymet, df)
 
-write.csv(df_complete, file="16priority_spp_OF_RF_2009-2022.csv")
-df_complete <- (read.csv("16priority_spp_OF_RF_2009-2022.csv"))
+write.csv(df_complete, file="data/16priority_spp_OF_RF_2009-2022.csv")
+df_complete <- (read.csv("data/16priority_spp_OF_RF_2009-2022.csv"))
 
 #take only the first yes in each year
 df_complete = df_complete %>% 
@@ -83,8 +95,8 @@ df_complete = df_complete %>%
 df_complete$ind_pp_year <- paste0(df_complete$individual_id, "_", df_complete$phenophase_id, "_", df_complete$first_yes_year)
 
 #read in the flower and fruit intensity data created using peak_phenometrics_flower.R and peak_phenometrics_fruit.R
-df_of_peak <- (read.csv("intensity_phenometrics_flower_16priority_spp_2013-2022.csv"))
-df_rf_peak <- (read.csv("intensity_phenometrics_fruit_16priority_spp_2013-2022.csv"))
+df_of_peak <- (read.csv("intensity_phenometrics_flower_8priority_spp_2013-2022.csv"))
+df_rf_peak <- (read.csv("intensity_phenometrics_fruit_8priority_spp_2013-2022.csv"))
 df_peak <- rbind(df_of_peak,df_rf_peak)
 
 df_peak$ind_pp_year <- paste0(df_peak$individual_id, "_", df_peak$phenophase_id, "_", df_peak$year)
